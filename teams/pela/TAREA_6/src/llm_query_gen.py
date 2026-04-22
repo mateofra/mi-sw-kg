@@ -41,7 +41,7 @@ Prefijos válidos:
 PREFIX ns: <https://example.org/partidos/>
 
 Solo debes usar el prefijo 'ns:' y los predicados definidos para este KG.
-No uses ningún otro prefijo externo como wd:, wdt:, schema:, rdf:, owl:, nor cualquier otro.
+No uses ningún otro prefijo externo como wd:, wdt:, schema:, rdf:, owl:, o cualquier otro.
 
 Propiedades disponibles:
 - ?partido ns:ocurreEn ?campo .
@@ -60,6 +60,7 @@ Reglas:
 5. Para contar, usa SELECT (COUNT(?variable) AS ?count) WHERE { ... }
 6. No uses FILTER para comparar propiedades; usa tripletas directas como ?variable ns:propiedad "valor" .
 7. NO uses sintaxis SQL como 'NOT IN (SELECT ...)'. Para exclusiones en SPARQL usa siempre 'FILTER NOT EXISTS { ... }' o 'MINUS { ... }'.
+8. Usa distinct en tus consultas cuando sea necesario (siempre que no sea un count).
 
 Ejemplo válido:
 PREFIX ns: <https://example.org/partidos/>
@@ -81,19 +82,22 @@ WHERE {{
 Pregunta: {question}
 """
     print(f"Pregunta: '{question}' con modelo '{model}'...")
-    response = ollama.generate(model=model, prompt=prompt)
-    query = response['response'].strip()
-    
-    # Limpieza robusta: si el modelo devuelve un bloque Markdown, extraemos solo la consulta.
-    if "```" in query:
-        # Buscamos el bloque que contenga una consulta SPARQL válida.
-        parts = query.split("```")
-        for part in parts:
-            if "SELECT" in part.upper() or "ASK" in part.upper():
-                query = part.replace("sparql", "").strip()
-                break
-    
-    return query
+    try:
+        response = ollama.generate(model=model, prompt=prompt)
+        query = response['response'].strip()
+        
+        # Limpieza robusta: si el modelo devuelve un bloque Markdown, extraemos solo la consulta.
+        if "```" in query:
+            # Buscamos el bloque que contenga una consulta SPARQL válida.
+            parts = query.split("```")
+            for part in parts:
+                if "SELECT" in part.upper() or "ASK" in part.upper():
+                    query = part.replace("sparql", "").strip()
+                    break
+        
+        return query
+    except Exception as e:
+        raise Exception(f"Error al conectar con Ollama o generar la consulta: {str(e)}")
 
 if __name__ == "__main__":
     # Ejemplo local para probar la generación de consultas desde consola.
